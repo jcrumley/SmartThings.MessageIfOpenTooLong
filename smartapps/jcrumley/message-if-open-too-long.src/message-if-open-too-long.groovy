@@ -10,7 +10,9 @@
  *
  *  If "sendImmediate" is true, an alert will be sent when first opened and then openalarmthreshold minutes later if still open.
  *
- *  If "repeat" is true, an alerts will keep being sent every "openalarmthreshold" minutes until the contact is closed.
+ *  If "sendImmediate" is false, an alert will be sent after "openalarmthreshold" minutes.
+ *
+ *  If "repeat" is true, an alerts will keep being sent every "repeatmessagedelay" minutes until the contact is closed.
  *
  *
  *  So if you set starttime = 6:00 AM, endtime = 9:00 pm, openalarmthreshold = 10 minutes, checktime = 9:00 pm, then you will get 
@@ -18,7 +20,7 @@
  *  if the door is open (in case you ignored the earlier notice).
  * 
  *
- *  Copyright 2017 John Crumley
+ *  Copyright 2019 John Crumley
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -61,8 +63,8 @@ preferences {
         }
 	}
     section("Open alarm threshold (defaults to 5 min)") {
-    	input "initialdelay", "number", title: "Initial Number of minutes", required: false
-		input "openalarmthreshold", "number", title: "Repeat Number of minutes", required: false
+		input "openalarmthreshold", "number", title: "Send after open x minutes", required: false
+        input "repeatmessagedelay", "number", title: "Repeat every X minutes", required: false
 	}
     section("Identifier") {
     	input "identifier", "text", title: "Text in message", required: true
@@ -129,7 +131,7 @@ def contactHandler(evt)
     		// check in a delayed time
             if (sendImmediate != true || repeat != true)
             {
-				final openDoorAwayInterval = initialdelay ? (initialdelay * 60) : (openalarmthreshold ? openalarmthreshold * 60 : 5)
+				final openDoorAwayInterval = openalarmthreshold ? openalarmthreshold * 60 : 5
     			runIn(openDoorAwayInterval, checkOpenTimeBounded)
         		log.debug "contactHandler: checkOpen scheduled in " + openDoorAwayInterval.toString()
             }
@@ -242,15 +244,15 @@ def checkOpen()
         
         if (repeat == true)
         {
-            final openDoorAwayInterval = openalarmthreshold ? openalarmthreshold * 60 : 5
-        	log.debug "checkOpen:  repeat in " + openDoorAwayInterval.toString()
+            final repeatTime = repeatmessagedelay ? (repeatmessagedelay * 60) : (openalarmthreshold ? openalarmthreshold * 60 : 5)
+        	log.debug "checkOpen:  repeat in " + repeatTime.toString()
             
             //make sure we don't have another one running due to the normal delay
             unschedule(checkOpenTimeBounded)
             unschedule(checkOpen)
             
             //notifiy again
-            runIn(openDoorAwayInterval, checkOpen)
+            runIn(repeatTime, checkOpen)
         }
         def summarySound = textToSpeech(message, true)  
      	//sonos.playTrack(summarySound.uri) 
